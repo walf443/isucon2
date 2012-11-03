@@ -59,6 +59,8 @@ get '/' => [qw(recent_sold)] => sub {
     $c->render('index.tx', { artists => $rows });
 };
 
+our $total_count_of = {};
+
 get '/artist/:artistid' => [qw(recent_sold)] => sub {
     my ($self, $c) = @_;
     my $artist = $self->dbh->select_row(
@@ -69,21 +71,31 @@ get '/artist/:artistid' => [qw(recent_sold)] => sub {
         'SELECT id, name FROM ticket WHERE artist_id = ? ORDER BY id',
         $artist->{id},
     );
-    my $counts = $self->dbh->select_all(
+    my $ticket_ids = [ map { $_->{id} } @$tickets ];
+    my $sold_counts = $self->dbh->select_all(
+        'SELECT variation.ticket_id, COUNT(*) as cnt FROM variation
+         INNER JOIN variation_counter ON variation_counter.variation_id = variation.id
+         WHERE variation.ticket_id IN (?)
+         GROUP BY variation.ticket_id
+        ', $ticket_ids
+    );
+    my $sold_count_of = {};
+    for my $sold_count ( @$sold_counts ) {
+        $sold_count_of->{ $sold_count->{ticket_id} } = $sold_count->{cnt};
+    }
+    my $total_counts = $self->dbh->select_all(
         'SELECT variation.ticket_id, COUNT(*) as cnt FROM variation
          INNER JOIN stock ON stock.variation_id = variation.id
-         WHERE variation.ticket_id IN (?) AND stock.order_id IS NULL
+         WHERE variation.ticket_id IN (?)
          GROUP BY variation.ticket_id
-        ',
-        [ map { $_->{id} } @$tickets],
+        ', $ticket_ids
     );
-    my $count_of = {};
-    for my $count ( @$counts ) {
-        $count_of->{$count->{ticket_id}} = $count->{cnt};
+    for my $total_count ( @$total_counts ) {
+        $total_count_of->{ $total_count->{ticket_id} } = $total_count->{cnt};
     }
     for my $ticket (@$tickets) {
-        if ( $count_of->{$ticket->{id}} ) {
-            $ticket->{count} = $count_of->{$ticket->{id}} + 0;
+        if ( $total_count_of->{$ticket->{id}} ) {
+            $ticket->{count} = $total_count_of->{$ticket->{id}} + 0 - ( ( $sold_count_of->{ $ticket->{id} } || 0 ) + 0 );
         } else {
             $ticket->{count} = 0;
         }
