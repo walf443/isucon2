@@ -120,7 +120,7 @@ post '/buy' => sub {
 
     my $txn = $self->dbh->txn_scope();
     $self->dbh->query(
-        'INSERT INTO order_request (member_id) VALUES (?)',
+        'INSERT INTO order_request (member_id, updated_at) VALUES (?, CURDATE())',
         $member_id,
     );
     my $order_id = $self->dbh->last_insert_id;
@@ -152,7 +152,7 @@ get '/admin/order.csv' => sub {
     my ($self, $c) = @_;
     $c->res->content_type('text/csv');
     my $orders = $self->dbh->select_all(
-        'SELECT order_request.*, stock.seat_id, stock.variation_id, stock.updated_at
+        'SELECT order_request.*, stock.seat_id, stock.variation_id
          FROM order_request JOIN stock ON order_request.id = stock.order_id
          ORDER BY order_request.id ASC',
     );
