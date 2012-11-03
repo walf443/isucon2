@@ -154,8 +154,8 @@ get '/admin/order.csv' => sub {
     my ($self, $c) = @_;
     $c->res->content_type('text/csv');
     my $orders = $self->dbh->select_all(
-        'SELECT order_request.*, stock.seat_id, stock.variation_id
-         FROM order_request JOIN stock ON order_request.id = stock.order_id
+        'SELECT order_request.* 
+         FROM order_request 
          ORDER BY order_request.id ASC',
     );
     my $body = '';
