@@ -119,22 +119,27 @@ post '/buy' => sub {
     my $member_id = $c->req->param('member_id');
 
     my $txn = $self->dbh->txn_scope();
-    $self->dbh->query(
-        'INSERT INTO order_request (member_id, updated_at) VALUES (?, CURDATE())',
-        $member_id,
+    my $seat_id = $self->dbh->select_one(
+	    'SELECT seat_id FROM stock WHERE variation_id = ? AND order_id IS NULL LIMIT 1',
+	    $variation_id
     );
-    my $order_id = $self->dbh->last_insert_id;
-    my $rows = $self->dbh->query(
-        'UPDATE stock SET order_id = ? WHERE variation_id = ? AND order_id IS NULL LIMIT 1',
-        $order_id, $variation_id,
-    );
-    if ($rows > 0) {
-        my $seat_id = $self->dbh->select_one(
-            'SELECT seat_id FROM stock WHERE order_id = ? LIMIT 1',
-            $order_id,
+    warn "seat_id: $seat_id";
+    if ( $seat_id ) {
+        warn "called!!";
+        $self->dbh->query(
+            'INSERT INTO order_request (member_id, variation_id, seat_id, updated_at) VALUES (?, ?, ?, CURDATE())',
+            $member_id,
+	        $variation_id,
+	        $seat_id
+        );
+        my $order_id = $self->dbh->last_insert_id;
+        my $rows = $self->dbh->query(
+            'UPDATE stock SET order_id = ? WHERE variation_id = ? AND seat_id = ? LIMIT 1',
+            $order_id, $variation_id, $seat_id
         );
         $txn->commit;
         $c->render('complete.tx', { seat_id => $seat_id, member_id => $member_id });
+        
     } else {
         $txn->rollback;
         $c->render('soldout.tx');
