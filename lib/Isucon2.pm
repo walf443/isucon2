@@ -69,14 +69,24 @@ get '/artist/:artistid' => [qw(recent_sold)] => sub {
         'SELECT id, name FROM ticket WHERE artist_id = ? ORDER BY id',
         $artist->{id},
     );
+    my $counts = $self->dbh->select_all(
+        'SELECT variation.ticket_id, COUNT(*) as cnt FROM variation
+         INNER JOIN stock ON stock.variation_id = variation.id
+         WHERE variation.ticket_id IN (?) AND stock.order_id IS NULL
+         GROUP BY variation.ticket_id
+        ',
+        [ map { $_->{id} } @$tickets],
+    );
+    my $count_of = {};
+    for my $count ( @$counts ) {
+        $count_of->{$count->{ticket_id}} = $count->{cnt};
+    }
     for my $ticket (@$tickets) {
-        my $count = $self->dbh->select_one(
-            'SELECT COUNT(*) FROM variation
-             INNER JOIN stock ON stock.variation_id = variation.id
-             WHERE variation.ticket_id = ? AND stock.order_id IS NULL',
-            $ticket->{id},
-        );
-        $ticket->{count} = $count;
+        if ( $count_of->{$ticket->{id}} ) {
+            $ticket->{count} = $count_of->{$ticket->{id}} + 0;
+        } else {
+            $ticket->{count} = 0;
+        }
     }
     $c->render('artist.tx', {
         artist  => $artist,
