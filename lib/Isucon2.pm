@@ -83,15 +83,23 @@ get '/artist/:artistid' => [qw(recent_sold)] => sub {
     for my $sold_count ( @$sold_counts ) {
         $sold_count_of->{ $sold_count->{ticket_id} } = $sold_count->{cnt};
     }
-    my $total_counts = $self->dbh->select_all(
-        'SELECT variation.ticket_id, COUNT(*) as cnt FROM variation
-         INNER JOIN stock ON stock.variation_id = variation.id
-         WHERE variation.ticket_id IN (?)
-         GROUP BY variation.ticket_id
-        ', $ticket_ids
-    );
-    for my $total_count ( @$total_counts ) {
-        $total_count_of->{ $total_count->{ticket_id} } = $total_count->{cnt};
+    my $new_ticket_ids = [];
+    for my $ticket_id ( @$ticket_ids ) {
+        if ( !$total_count_of->{$ticket_id} ) {
+            push @{$new_ticket_ids}, $ticket_id;
+        }
+    }
+    if ( @$new_ticket_ids ) {
+            my $total_counts = $self->dbh->select_all(
+                'SELECT variation.ticket_id, COUNT(*) as cnt FROM variation
+                 INNER JOIN stock ON stock.variation_id = variation.id
+                 WHERE variation.ticket_id IN (?)
+                 GROUP BY variation.ticket_id
+                ', $new_ticket_ids
+            );
+            for my $total_count ( @$total_counts ) {
+                $total_count_of->{ $total_count->{ticket_id} } = $total_count->{cnt};
+            }
     }
     for my $ticket (@$tickets) {
         if ( $total_count_of->{$ticket->{id}} ) {
