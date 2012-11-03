@@ -41,12 +41,11 @@ filter 'recent_sold' => sub {
     sub {
         my ($self, $c) = @_;
         $c->stash->{recent_sold} = $self->dbh->select_all(
-            'SELECT stock.seat_id, variation.name AS v_name, ticket.name AS t_name, artist.name AS a_name FROM stock
-               JOIN variation ON stock.variation_id = variation.id
+            'SELECT order_request.seat_id, variation.name AS v_name, ticket.name AS t_name, artist.name AS a_name FROM order_request
+               JOIN variation ON order_request.variation_id = variation.id
                JOIN ticket ON variation.ticket_id = ticket.id
                JOIN artist ON ticket.artist_id = artist.id
-             WHERE order_id IS NOT NULL
-             ORDER BY order_id DESC LIMIT 10',
+             ORDER BY order_request.id DESC LIMIT 10',
         );
         $app->($self, $c);
     }
@@ -123,9 +122,7 @@ post '/buy' => sub {
 	    'SELECT seat_id FROM stock WHERE variation_id = ? AND order_id IS NULL LIMIT 1',
 	    $variation_id
     );
-    warn "seat_id: $seat_id";
     if ( $seat_id ) {
-        warn "called!!";
         $self->dbh->query(
             'INSERT INTO order_request (member_id, variation_id, seat_id, updated_at) VALUES (?, ?, ?, CURDATE())',
             $member_id,
