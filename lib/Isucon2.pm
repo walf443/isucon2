@@ -145,6 +145,10 @@ post '/buy' => sub {
 	        $seat_id
         );
         my $order_id = $self->dbh->last_insert_id;
+        $self->dbh->query(
+            'INSERT INTO variation_counter (variation_id, cnt) VALUES (?, 1) ON DUPLICATE KEY UPDATE variation_counter.cnt = variation_counter.cnt + 1 ',
+            $variation_id
+        );
         my $rows = $self->dbh->query(
             'UPDATE stock SET order_id = ? WHERE variation_id = ? AND seat_id = ? LIMIT 1',
             $order_id, $variation_id, $seat_id
@@ -191,6 +195,7 @@ post '/admin' => sub {
         $self->dbh->query($sql) if $sql;
     }
     close($fh);
+    $self->dbh->query("truncate table variation_counter");
 
     $c->redirect('/admin')
 };
