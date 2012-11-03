@@ -104,6 +104,14 @@ get '/ticket/:ticketid' => [qw(recent_sold)] => sub {
         'SELECT id, name FROM variation WHERE ticket_id = ? ORDER BY id',
         $ticket->{id},
     );
+    my $vacancies = $self->dbh->select_all(
+        'SELECT variation_id, COUNT(*) as cnt FROM stock WHERE variation_id IN (?) AND order_id IS NULL GROUP BY variation_id',
+        [ map { $_->{id} } @$variations ],
+    );
+    my $vacancy_of = {};
+    for my $vacancy ( @$vacancies ) {
+        $vacancy_of->{ $vacancy->{variation_id} } = $vacancy->{cnt} + 0;
+    }
     for my $variation (@$variations) {
         $variation->{stock} = $self->dbh->selectall_hashref(
             'SELECT seat_id, order_id FROM stock WHERE variation_id = ?',
@@ -111,10 +119,7 @@ get '/ticket/:ticketid' => [qw(recent_sold)] => sub {
             {},
             $variation->{id},
         );
-        $variation->{vacancy} = $self->dbh->select_one(
-            'SELECT COUNT(*) FROM stock WHERE variation_id = ? AND order_id IS NULL',
-            $variation->{id},
-        );
+        $variation->{vacancy} = $vacancy_of->{$variation->{id}} || 0;
     }
     $c->render('ticket.tx', {
         ticket     => $ticket,
