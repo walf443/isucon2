@@ -4,7 +4,9 @@ import play.api._
 import play.api.mvc._
 
 object Admin extends Controller {
-  def index() = TODO
+  def index() = Action {
+    Ok(views.html.admin())
+  }
   def init_data() = TODO
   def download_order_csv() = TODO
 }
