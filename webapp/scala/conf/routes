@@ -3,7 +3,14 @@
 # ~~~~
 
 # Home page
-GET     /                           controllers.Application.index
+GET     /                           controllers.Application.index()
+GET     /artist/:artist_id          controllers.Artist.show(artist_id: Int)
+GET     /ticket/:ticket_id          controllers.Ticket.show(ticket_id: Int)
+POST    /buy                        controllers.Ticket.buy()
+
+GET     /admin                      controllers.Admin.index()
+POST    /admin                      controllers.Admin.init_data()
+GET     /admin/order.csv            controllers.Admin.download_order_csv()
 
 # Map static resources from the /public folder to the /assets URL path
 GET     /assets/*file               controllers.Assets.at(path="/public", file)
