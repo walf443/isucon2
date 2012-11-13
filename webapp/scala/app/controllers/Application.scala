@@ -7,7 +7,7 @@ import models._
 object Application extends Controller {
   
   def index = Action {
-    val artists = Array(models.Artist(1, "NHN48"), models.Artist(2, "はだいろクローバーZ"))
+    val artists = models.Artist.list
     Ok(views.html.index(artists))
   }
   
