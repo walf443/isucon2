@@ -1,7 +1,12 @@
-@(artist: Artist)
+@(artist: Artist, tickets: Seq[Ticket])
 
 @main {
 	<h2>@{artist.name}</h2>
 	<ul>
+		@tickets.map { ticket =>
+			<li class="ticket">
+			<a href="/ticket/@{ticket.id}">@{ticket.name}</a>残り<span class="count"></span>枚
+			</li>
+		}
 	</ul>
 }
