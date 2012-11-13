@@ -11,6 +11,7 @@ object Admin extends Controller {
   def index() = Action {
     Ok(views.html.admin())
   }
+
   def init_data() = Action {
     val source = Source.fromFile("../config/database/initial_data.sql")
     DB.withConnection { implicit c =>
