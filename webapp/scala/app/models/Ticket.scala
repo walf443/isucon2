@@ -4,7 +4,9 @@ import anorm.SqlParser._
 import play.api.db._
 import play.api.Play.current
 
-case class Ticket(id: Long, name: String, artist_id: Option[Long])
+case class Ticket(id: Long, name: String, artistId: Option[Long])
+
+case class ArtistTicket(id: Long, name: String, artistId: Long, artistName: String)
 
 object Ticket {
   val default: anorm.RowParser[Ticket] = {
@@ -30,6 +32,26 @@ object Ticket {
         case None => 0
         case Some(count) => count
       }
+    }
+  }
+
+}
+
+object ArtistTicket {
+  val default: anorm.RowParser[ArtistTicket] = {
+    get[Long]("ticket.id") ~
+    get[String]("ticket.name") ~
+    get[Long]("ticket.artist_id") ~
+    get[String]("artist.name") map {
+      case id~name~artistId~artistName => ArtistTicket(id, name, artistId, artistName)
+    }
+  }
+
+  def findByTicketId(ticketId: Long): Option[ArtistTicket] = {
+    DB.withConnection { implicit c =>
+      SQL("SELECT t.*, a.name AS artist_name FROM ticket t INNER JOIN artist a ON t.artist_id = a.id WHERE t.id = {ticket_id} LIMIT 1").on(
+        'ticket_id -> ticketId
+      ).as(ArtistTicket.default.singleOpt)
     }
   }
 
