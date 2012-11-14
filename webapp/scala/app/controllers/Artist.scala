@@ -11,7 +11,8 @@ object Artist extends Controller {
         NotFound
       case Some(artist) =>
         val tickets = models.Ticket.findAllByArtist(artist)
-        Ok(views.html.artist(artist, tickets))
+        val remainCountOf = tickets.map(ticket => ( ticket.id -> models.Ticket.remainCount(ticket.id)) ).toMap
+        Ok(views.html.artist(artist, tickets, remainCountOf))
     }
   }
 }

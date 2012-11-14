@@ -13,10 +13,25 @@ object Ticket {
       case id~name => Ticket(id, name, None)
     }
   }
+
   def findAllByArtist(artist: Artist): Seq[Ticket] = {
     DB.withConnection { implicit c =>
       SQL("SELECT id, name FROM ticket WHERE artist_id = {artist_id}").on('artist_id -> artist.id).as(Ticket.default*)
     }
   }
+
+  def remainCount(ticketId: Long): Long = {
+    DB.withConnection { implicit c =>
+      val count = SQL("SELECT COUNT(*) FROM variation INNER JOIN stock ON stock.variation_id = variation.id WHERE variation.ticket_id = {ticket_id} AND stock.order_id IS NULL").on(
+        'ticket_id -> ticketId
+      ).as(scalar[Long].singleOpt)
+
+      count match {
+        case None => 0
+        case Some(count) => count
+      }
+    }
+  }
+
 }
 
