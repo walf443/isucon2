@@ -8,7 +8,8 @@ object Ticket extends Controller {
     artistTicket match {
       case None => NotFound
       case Some(artistTicket) =>
-        Ok(views.html.ticket(artistTicket))
+        val variations = models.Variation.findAllByTicket(models.ArtistTicket.toTicket(artistTicket))
+        Ok(views.html.ticket(artistTicket, variations))
     }
   }
 

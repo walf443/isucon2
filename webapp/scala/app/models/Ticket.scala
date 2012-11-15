@@ -55,5 +55,9 @@ object ArtistTicket {
     }
   }
 
+  def toTicket(artistTicket: ArtistTicket): Ticket = {
+    Ticket(artistTicket.id, artistTicket.name, Some(artistTicket.artistId))
+  }
+
 }
 
