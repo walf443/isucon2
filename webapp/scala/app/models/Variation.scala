@@ -22,4 +22,16 @@ object Variation {
       ).as(Variation.default*)
     }
   }
+
+  def remainCount(variationId: Long): Long = {
+    DB.withConnection { implicit c =>
+      val count = SQL("SELECT COUNT(*) FROM stock WHERE variation_id = {variationId} AND order_id IS NULL").on(
+        'variationId -> variationId
+      ).as(scalar[Long].singleOpt)
+      count match {
+        case None => 0
+        case Some(count) => count
+      }
+    }
+  }
 }

@@ -9,7 +9,8 @@ object Ticket extends Controller {
       case None => NotFound
       case Some(artistTicket) =>
         val variations = models.Variation.findAllByTicket(models.ArtistTicket.toTicket(artistTicket))
-        Ok(views.html.ticket(artistTicket, variations))
+        val remainCountOf = variations.map(v => (v.id -> models.Variation.remainCount(v.id))).toMap
+        Ok(views.html.ticket(artistTicket, variations, remainCountOf))
     }
   }
 
