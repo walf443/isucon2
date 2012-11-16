@@ -1,4 +1,4 @@
-@(artistTicket: ArtistTicket, variations: Seq[Variation], remainCountOf: Map[Long, Long])
+@(artistTicket: ArtistTicket, variations: Seq[Variation], remainCountOf: Map[Long, Long], stockOf: Map[Long, Seq[Stock]], seatSeq: Seq[Int])
 
 @main {
 	<h2>@{artistTicket.artistName} : @{artistTicket.name}</h2>
@@ -17,4 +17,13 @@
 	</ul>
 
 	<h3>席状況</h3>
+	<table>
+		@seatSeq.map { i =>
+			<tr>
+				@seatSeq.map { j =>
+					<td>@{ val key = "%02d".format(i) + "-" + "%02d".format(j); key }</td>
+				}
+			</tr>
+		}
+	</table>
 }
