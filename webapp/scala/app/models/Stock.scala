@@ -23,5 +23,12 @@ object Stock {
       ).as(default*)
     }
   }
+
+  def getSeatMapByVariation(variation: Variation): Map[String, Stock] = {
+    val stocks = this.findAllByVariation(variation)
+    stocks.map { stock =>
+      stock.seatId -> stock
+    }.toMap
+  }
 }
 

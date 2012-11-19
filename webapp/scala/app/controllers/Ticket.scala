@@ -11,7 +11,7 @@ object Ticket extends Controller {
       case Some(artistTicket) =>
         val variations = models.Variation.findAllByTicket(models.ArtistTicket.toTicket(artistTicket))
         val remainCountOf = variations.map(v => (v.id -> models.Variation.remainCount(v.id))).toMap
-        val stockOf = variations.map(v => (v.id -> models.Stock.findAllByVariation(v))).toMap
+        val stockOf = variations.map(v => (v.id -> models.Stock.getSeatMapByVariation(v))).toMap
         Ok(views.html.ticket(artistTicket, variations, remainCountOf, stockOf, seatSeq))
     }
   }

@@ -1,4 +1,4 @@
-@(artistTicket: ArtistTicket, variations: Seq[Variation], remainCountOf: Map[Long, Long], stockOf: Map[Long, Seq[Stock]], seatSeq: Seq[Int])
+@(artistTicket: ArtistTicket, variations: Seq[Variation], remainCountOf: Map[Long, Long], stockOf: Map[Long, Map[String, Stock]], seatSeq: Seq[Int])
 
 @main {
 	<h2>@{artistTicket.artistName} : @{artistTicket.name}</h2>
@@ -17,13 +17,16 @@
 	</ul>
 
 	<h3>席状況</h3>
-	<table>
-		@seatSeq.map { i =>
-			<tr>
-				@seatSeq.map { j =>
-					<td>@{ val key = "%02d".format(i) + "-" + "%02d".format(j); key }</td>
-				}
-			</tr>
-		}
-	</table>
+	@variations.map { variation =>
+		<h4>@{variation.name}</h4>
+		<table class="seats" data-variationid="@{variation.id}">
+			@seatSeq.map { i =>
+				<tr>
+					@seatSeq.map { j =>
+					@{ val stocks: Map[String, Stock] = stockOf.getOrElse(variation.id, Map()); val key = "%02d".format(i) + "-" + "%02d".format(j); val stock = stocks.get(key); val result = stock match { case None => "available"; case Some(stock) => stock.orderId.getOrElse("available") }; Html("<td id=\"" + key + "\" class=\"" + result + "\"></td>") }
+					}
+				</tr>
+			}
+		</table>
+	}
 }
