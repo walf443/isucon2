@@ -6,10 +6,10 @@
 		@variations.map { variation =>
 			<li class="variation">
 				<form method="POST" action="/buy">
-					<input type="hidden" name="ticket_id" value="@{artistTicket.id}">
-					<input type="hidden" name="variation_id" value="@{variation.id}">
+					<input type="hidden" name="ticketId" value="@{artistTicket.id}">
+					<input type="hidden" name="variationId" value="@{variation.id}">
 					<span class="variation_name">@{variation.name}</span> 残り<span class="vacancy" id="vacancy_@{variation.id}">@{remainCountOf.getOrElse(variation.id, 0)}</span>席
-					<input type="text" name="member_id" value="">
+					<input type="text" name="memberId" value="">
 					<input type="submit" value="購入">
 				</form>
 			</li>

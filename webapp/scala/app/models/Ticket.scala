@@ -35,6 +35,24 @@ object Ticket {
     }
   }
 
+  def buy(memberId: Long, variationId: Long): Option[String] = {
+    DB.withConnection { implicit c =>
+      SQL("INSERT INTO order_request (member_id) VALUES ({memberId})").on('memberId -> memberId).execute()
+      val orderId = SQL("SELECT LAST_INSERT_ID()").as(scalar[Long].single)
+      var isUpdate = SQL("UPDATE stock SET order_id = {orderId} WHERE variation_id = {variationId} AND order_id IS NULL ORDER BY RAND() LIMIT 1").on(
+        'variationId -> variationId, 'orderId -> orderId
+      ).executeUpdate()
+      if ( isUpdate > 0 ) {
+        val seatId = SQL("SELECT seat_id FROM stock WHERE order_id = {orderId} LIMIT 1").on(
+          'orderId -> orderId
+        ).as(scalar[String].singleOpt)
+        return seatId
+      } else {
+        None
+      }
+    }
+  }
+
 }
 
 object ArtistTicket {

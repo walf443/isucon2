@@ -4,14 +4,16 @@ import anorm.SqlParser._
 import play.api.db._
 import play.api.Play.current
 
-case class Stock(id: Long, variationId: Long, seatId: String, orderId: Option[String])
+case class Stock(id: Long, variationId: Long, seatId: String, orderId: Option[Long])
+
+case class Order(variationId: Long, memberId: Long)
 
 object Stock {
   val default: anorm.RowParser[Stock] = {
     get[Long]("stock.id") ~
     get[Long]("stock.variation_id") ~
     get[String]("stock.seat_id") ~
-    get[Option[String]]("stock.order_id") map {
+    get[Option[Long]]("stock.order_id") map {
       case id~variation_id~seat_id~order_id => Stock(id, variation_id, seat_id, order_id)
     }
   }

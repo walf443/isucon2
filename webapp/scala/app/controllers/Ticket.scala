@@ -1,5 +1,6 @@
 package controllers
 import play.api._
+import play.api.data._
 import play.api.mvc._
 
 object Ticket extends Controller {
@@ -16,5 +17,24 @@ object Ticket extends Controller {
     }
   }
 
-  def buy() = TODO
+  import play.api.data.Forms._
+  val buyForm: Form[models.Order] = Form(mapping(
+    "variationId" -> longNumber,
+    "memberId"    -> longNumber
+  )(models.Order.apply)(models.Order.unapply))
+
+  def buy() = Action { implicit request =>
+    buyForm.bindFromRequest.fold(
+      errors => BadRequest("bad request"),
+      ticket => {
+        val seatId = models.Ticket.buy(ticket.memberId, ticket.variationId)
+        seatId match {
+          case None =>
+            Ok(views.html.soldout())
+          case Some(seatId) =>
+            Ok(views.html.complete(seatId, ticket.memberId))
+        }
+      }
+    )
+  }
 }
