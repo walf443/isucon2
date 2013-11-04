@@ -2,6 +2,8 @@ require 'sinatra/base'
 require 'slim'
 require 'json'
 require 'mysql2'
+require 'redis'
+require 'msgpack'
 
 class Isucon2App < Sinatra::Base
   $stdout.sync = true
@@ -21,15 +23,39 @@ class Isucon2App < Sinatra::Base
     end
 
     def recent_sold
+      redis = get_redis
       mysql = connection
-      mysql.query(
-        'SELECT stock.seat_id, variation.name AS v_name, ticket.name AS t_name, artist.name AS a_name FROM stock
-           JOIN variation ON stock.variation_id = variation.id
-           JOIN ticket ON variation.ticket_id = ticket.id
-           JOIN artist ON ticket.artist_id = artist.id
-         WHERE order_id IS NOT NULL
-         ORDER BY order_id DESC LIMIT 10',
-      )
+      row_raws = redis.lrange("order_request", 0, 10)
+      variation_ids = []
+      return [] if row_raws.empty?
+      
+      rows = []
+      row_raws.each do |raw_row|
+        row = MessagePack.unpack(raw_row)
+        variation_ids.push(row["variation_id"])
+        rows.push(row)
+      end
+      query = ("SELECT variation.id as variation_id, variation.name as v_name, ticket.name as t_name, artist.name as a_name 
+        FROM variation 
+        JOIN ticket ON variation.ticket_id = ticket.id 
+        JOIN artist on artist.id = ticket.artist_id  WHERE variation.id IN (#{variation_ids.join(',')})
+      ")
+      variations = mysql.query(query)
+      variation_of = {}
+      variations.each do |variation|
+        variation_of[variation["variation_id"]] = variation
+      end
+      rows.each do |row|
+        variation = variation_of[row["variation_id"]]
+        ["v_name", "t_name", "a_name"].each do |col|
+          row[col] = variation[col]
+        end
+      end
+      return rows
+    end
+
+    def get_redis
+      Redis.new
     end
   end
 
@@ -95,6 +121,7 @@ class Isucon2App < Sinatra::Base
 
   post '/buy' do
     mysql = connection
+    redis = get_redis
     mysql.query('BEGIN')
     mysql.query("INSERT INTO order_request (member_id) VALUES ('#{ mysql.escape(params[:member_id]) }')")
     order_id = mysql.last_id
@@ -104,11 +131,12 @@ class Isucon2App < Sinatra::Base
        ORDER BY RAND() LIMIT 1",
     )
     if mysql.affected_rows > 0
-      seat_id = mysql.query(
-        "SELECT seat_id FROM stock WHERE order_id = #{ mysql.escape(order_id.to_s) } LIMIT 1",
-      ).first['seat_id']
+      stock = mysql.query(
+        "SELECT * FROM stock WHERE order_id = #{ mysql.escape(order_id.to_s) } LIMIT 1",
+      ).first
+      redis.lpush("order_request", { "order_id" =>  order_id, "stock_id" => stock["id"], "variation_id" => stock["variation_id"], "seat_id" => stock["seat_id"] }.to_msgpack)
       mysql.query('COMMIT')
-      slim :complete, :locals => { :seat_id => seat_id, :member_id => params[:member_id] }
+      slim :complete, :locals => { :seat_id => stock["seat_id"], :member_id => params[:member_id] }
     else
       mysql.query('ROLLBACK')
       slim :soldout
@@ -138,7 +166,9 @@ class Isucon2App < Sinatra::Base
   end
 
   post '/admin' do
+    redis = get_redis
     mysql = connection
+    redis.flushall
     open(File.dirname(__FILE__) + '/../config/database/initial_data.sql') do |file|
       file.each do |line|
         next unless line.strip!.length > 0
