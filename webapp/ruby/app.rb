@@ -89,6 +89,7 @@ class Isucon2App < Sinatra::Base
 
   get '/ticket/:ticketid' do
     mysql = connection
+    redis = get_redis
     ticket = mysql.query(
       "SELECT t.*, a.name AS artist_name FROM ticket t
        INNER JOIN artist a ON t.artist_id = a.id
@@ -98,10 +99,7 @@ class Isucon2App < Sinatra::Base
       "SELECT id, name FROM variation WHERE ticket_id = #{ mysql.escape(ticket['id'].to_s) } ORDER BY id",
     )
     variations.each do |variation|
-      variation["count"] = mysql.query(
-        "SELECT COUNT(*) AS cnt FROM stock
-         WHERE variation_id = #{ mysql.escape(variation['id'].to_s) } AND order_id IS NULL",
-      ).first["cnt"]
+      variation["count"] = redis.get("variation_remain_count_#{variation['id']}")
       variation["stock"] = {}
       mysql.query(
         "SELECT seat_id, order_id FROM stock
@@ -125,7 +123,7 @@ class Isucon2App < Sinatra::Base
     mysql.query(
       "UPDATE stock SET order_id = #{ mysql.escape(order_id.to_s) }
        WHERE variation_id = #{ mysql.escape(params[:variation_id]) } AND order_id IS NULL
-       ORDER BY RAND() LIMIT 1",
+       ORDER BY id DESC LIMIT 1",
     )
     if mysql.affected_rows > 0
       stock = mysql.query(
@@ -133,6 +131,7 @@ class Isucon2App < Sinatra::Base
       ).first
       redis.lpush("order_request", { "order_id" =>  order_id, "stock_id" => stock["id"], "variation_id" => stock["variation_id"], "seat_id" => stock["seat_id"] }.to_msgpack)
       redis.decr("ticket_remain_count_#{stock['ticket_id']}")
+      redis.decr("variation_remain_count_#{stock['variation_id']}")
       mysql.query('COMMIT')
       slim :complete, :locals => { :seat_id => stock["seat_id"], :member_id => params[:member_id] }
     else
@@ -176,6 +175,10 @@ class Isucon2App < Sinatra::Base
     ticket_remain_counts = mysql.query("select ticket_id, count(*) as count from stock join variation on (stock.variation_id = variation.id) group by ticket_id")
     ticket_remain_counts.each do |row|
       redis.set("ticket_remain_count_#{row["ticket_id"]}", row["count"])
+    end
+    variation_remain_counts = mysql.query("select variation_id, count(*) as count from stock  group by variation_id")
+    variation_remain_counts.each do |row|
+      redis.set("variation_remain_count_#{row["variation_id"]}", row["count"])
     end
     redirect '/admin', 302
   end
