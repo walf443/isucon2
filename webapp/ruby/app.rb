@@ -77,12 +77,9 @@ class Isucon2App < Sinatra::Base
     tickets = mysql.query(
       "SELECT id, name FROM ticket WHERE artist_id = #{ mysql.escape(artist['id'].to_s) } ORDER BY id",
     )
+    redis = get_redis
     tickets.each do |ticket|
-      ticket["count"] = mysql.query(
-        "SELECT COUNT(*) AS cnt FROM variation
-         INNER JOIN stock ON stock.variation_id = variation.id
-         WHERE variation.ticket_id = #{ mysql.escape(ticket['id'].to_s) } AND stock.order_id IS NULL",
-      ).first["cnt"]
+      ticket["count"] = redis.get("ticket_remain_count_#{ticket['id']}")
     end
     slim :artist, :locals => {
       :artist  => artist,
@@ -132,9 +129,10 @@ class Isucon2App < Sinatra::Base
     )
     if mysql.affected_rows > 0
       stock = mysql.query(
-        "SELECT * FROM stock WHERE order_id = #{ mysql.escape(order_id.to_s) } LIMIT 1",
+        "SELECT* from stock join variation on (variation.id = stock.variation_id) where order_id = #{ mysql.escape(order_id.to_s) } LIMIT 1",
       ).first
       redis.lpush("order_request", { "order_id" =>  order_id, "stock_id" => stock["id"], "variation_id" => stock["variation_id"], "seat_id" => stock["seat_id"] }.to_msgpack)
+      redis.decr("ticket_remain_count_#{stock['ticket_id']}")
       mysql.query('COMMIT')
       slim :complete, :locals => { :seat_id => stock["seat_id"], :member_id => params[:member_id] }
     else
@@ -174,6 +172,10 @@ class Isucon2App < Sinatra::Base
         next unless line.strip!.length > 0
         mysql.query(line)
       end
+    end
+    ticket_remain_counts = mysql.query("select ticket_id, count(*) as count from stock join variation on (stock.variation_id = variation.id) group by ticket_id")
+    ticket_remain_counts.each do |row|
+      redis.set("ticket_remain_count_#{row["ticket_id"]}", row["count"])
     end
     redirect '/admin', 302
   end
