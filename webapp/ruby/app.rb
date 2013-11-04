@@ -116,7 +116,6 @@ class Isucon2App < Sinatra::Base
 
   post '/buy' do
     mysql = connection
-    redis = get_redis
     mysql.query('BEGIN')
     mysql.query("INSERT INTO order_request (member_id) VALUES ('#{ mysql.escape(params[:member_id]) }')")
     order_id = mysql.last_id
@@ -126,12 +125,15 @@ class Isucon2App < Sinatra::Base
        ORDER BY id DESC LIMIT 1",
     )
     if mysql.affected_rows > 0
+      redis = get_redis
       stock = mysql.query(
         "SELECT* from stock join variation on (variation.id = stock.variation_id) where order_id = #{ mysql.escape(order_id.to_s) } LIMIT 1",
       ).first
-      redis.lpush("order_request", { "order_id" =>  order_id, "stock_id" => stock["id"], "variation_id" => stock["variation_id"], "seat_id" => stock["seat_id"] }.to_msgpack)
-      redis.decr("ticket_remain_count_#{stock['ticket_id']}")
-      redis.decr("variation_remain_count_#{stock['variation_id']}")
+      redis.pipelined do
+        redis.lpush("order_request", { "order_id" =>  order_id, "stock_id" => stock["id"], "variation_id" => stock["variation_id"], "seat_id" => stock["seat_id"] }.to_msgpack)
+        redis.decr("ticket_remain_count_#{stock['ticket_id']}")
+        redis.decr("variation_remain_count_#{stock['variation_id']}")
+      end
       mysql.query('COMMIT')
       slim :complete, :locals => { :seat_id => stock["seat_id"], :member_id => params[:member_id] }
     else
