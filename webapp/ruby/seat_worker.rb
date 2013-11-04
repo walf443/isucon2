@@ -16,7 +16,7 @@ def connection
 end
 
 def get_redis
-  Redis.new
+  Redis.new(:path => "/tmp/redis.sock")
 end
 
 def render_html(ticket_id)
@@ -50,16 +50,28 @@ def cache_seat_html(ticket_id)
   redis.set("seat_cache_#{ticket_id}", html)
 end
 
-loop do
-  begin
-    5.times do |i|
-      warn "render seat for #{i + 1}"
-      cache_seat_html(i+1)
-      sleep(0.2)
+begin
+  5.times do |i|
+    Process.fork do
+      loop do
+        begin
+          warn "render seat for #{i + 1}"
+          cache_seat_html(i+1)
+          sleep(0.5)
+        rescue Interrupt => e
+          exit
+        rescue Exception => e
+          warn e
+        end
+      end
     end
-  rescue Interrupt => e
-    exit
-  rescue Exception => e
-    warn e
   end
+rescue Interrupt => e
+  exit
+rescue Exception => e
+  warn e
+end
+
+loop do
+  sleep(1)
 end
