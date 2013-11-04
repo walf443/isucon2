@@ -100,17 +100,12 @@ class Isucon2App < Sinatra::Base
     )
     variations.each do |variation|
       variation["count"] = redis.get("variation_remain_count_#{variation['id']}")
-      variation["stock"] = {}
-      mysql.query(
-        "SELECT seat_id, order_id FROM stock
-         WHERE variation_id = #{ mysql.escape(variation['id'].to_s) }",
-      ).each do |stock|
-        variation["stock"][stock["seat_id"]] = stock["order_id"]
-      end
     end
+    seat_html = redis.get("seat_cache_#{params[:ticketid]}")
     slim :ticket, :locals => {
       :ticket     => ticket,
       :variations => variations,
+      :seat_html => seat_html
     }
   end
 
